@@ -1,30 +1,53 @@
-import chats from './chat';
-import matrix from './matrix';
-import messages from './message';
-import users from './user';
-import auth from './auth';
+// import chats from './chat';
+import ChatService from './chat';
+import MatrixService from './matrix';
+//import messages from './message';
+import MessagesService from './message';
+// import users from './user';
+import UserService from './user';
+//import auth from './auth';
+import AuthService from './auth';
 
 const debug = require('debug')('rnm:services:external.js');
 
 class ExternalService {
+
+
+
+  constructor(props) {
+    this.matrixInstance = new MatrixService();
+    this.userInstance = new UserService(this.matrixInstance);
+    this.messagesInstance= new MessagesService(this.matrixInstance,this.userInstance);
+    this.chatInstance =  new ChatService(this.matrixInstance, this.userInstance, this.messagesInstance);
+    this.authInstance =  new AuthService(this.matrixInstance);
+  }
+
   /*************************************************
    * CLIENT METHODS
    *************************************************/
 
+  async initMatrixInstance() {
+    this.matrixInstance = new MatrixService();
+    this.userInstance = new UserService(this.matrixInstance);
+    this.messagesInstance= new MessagesService(this.matrixInstance,this.userInstance);
+    this.chatInstance =  new ChatService(this.matrixInstance, this.userInstance, this.messagesInstance);
+    this.authInstance =  new AuthService(this.matrixInstance);
+  }
+
   async createClient(baseUrl, accessToken, userId, deviceId) {
-    return matrix.createClient(baseUrl, accessToken, userId, deviceId);
+    return this.matrixInstance.createClient(baseUrl, accessToken, userId, deviceId);
   }
 
   async start(useCrypto) {
-    return matrix.start(useCrypto);
+    return this.matrixInstance.start(useCrypto);
   }
 
   async getHomeserverData(domain) {
-    return matrix.getHomeserverData(domain);
+    return this.matrixInstance.getHomeserverData(domain);
   }
 
   getClient() {
-    return matrix.getClient();
+    return this.matrixInstance.getClient();
   }
 
   /*************************************************
@@ -32,15 +55,15 @@ class ExternalService {
    *************************************************/
 
   initAuth() {
-    return auth.init();
+    return this.authInstance.init(this.matrixInstance);
   }
 
   loginWithPassword(username, password, homeserver, initCrypto = false) {
-    return auth.loginWithPassword(username, password, homeserver, initCrypto);
+    return this.authInstance.loginWithPassword(username, password, homeserver, initCrypto);
   }
 
   logout() {
-    return auth.logout();
+    return this.authInstance.logout();
   }
 
   /*************************************************
@@ -48,19 +71,20 @@ class ExternalService {
    *************************************************/
 
   isReady$() {
-    return matrix.isReady$();
+    console.log('this.matrixInstance',this.matrixInstance)
+    return this.matrixInstance.isReady$();
   }
 
   isSynced$() {
-    return matrix.isSynced$();
+    return this.matrixInstance.isSynced$();
   }
 
   authIsLoaded$() {
-    return auth.isLoaded$();
+    return this.authInstance.isLoaded$();
   }
 
   isLoggedIn$() {
-    return auth.isLoggedIn$();
+    return this.authInstance.isLoggedIn$();
   }
 
   /*************************************************
@@ -68,7 +92,7 @@ class ExternalService {
    *************************************************/
 
   getMyUser() {
-    return users.getMyUser();
+    return this.userInstance.getMyUser();
   }
 
   /*************************************************
@@ -81,43 +105,43 @@ class ExternalService {
       invite: [], // list of user IDs
       room_topic: '',
     };
-    return chats.createChat({ ...defaults, ...options });
+    return this.chatInstance.createChat({ ...defaults, ...options });
   }
 
   async createEncryptedRoom(usersToInvite) {
-    return chats.createEncryptedChat(usersToInvite);
+    return this.chatInstance.createEncryptedChat(usersToInvite);
   }
 
   getRooms$(slim = false) {
-    return chats.getChats(slim);
+    return this.chatInstance.getChats(slim);
   }
 
   getRoomsByType$(type) {
-    return chats.getListByType$(type);
+    return this.chatInstance.getListByType$(type);
   }
 
   getRoomById(roomId) {
-    return chats.getChatById(roomId);
+    return this.chatInstance.getChatById(roomId);
   }
 
   joinRoom(roomIdOrAlias) {
-    chats.joinRoom(roomIdOrAlias);
+    this.chatInstance.joinRoom(roomIdOrAlias);
   }
 
   leaveRoom(roomId) {
-    chats.leaveRoom(roomId);
+    this.chatInstance.leaveRoom(roomId);
   }
 
   rejectInvite(roomId) {
-    chats.leaveRoom(roomId);
+    this.chatInstance.leaveRoom(roomId);
   }
 
   getDirectChat(userId) {
     let directMessage = null;
-    const joinedChats = chats.getChats(false).getValue();
+    const joinedChats = this.chatInstance.getChats(false).getValue();
     for (let i = 0; i < joinedChats.length && !directMessage; i++) {
       const chat = joinedChats[i];
-      const members = chat.getMembers();
+      const members = this.chatInstance.getMembers();
       const hasUser = members.find((member) => member.id === userId);
       if (members.length === 2 && hasUser) {
         directMessage = chat;
@@ -127,8 +151,8 @@ class ExternalService {
   }
 
   setRoomName(roomId, name) {
-    const chat = chats.getChatById(roomId);
-    chat.setName(name);
+    const chat = this.chatInstance.getChatById(roomId);
+    this.chatInstance.setName(name);
   }
 
   /*************************************************
@@ -136,27 +160,27 @@ class ExternalService {
    *************************************************/
 
   send(content, type, roomId, eventId = null) {
-    messages.send(content, type, roomId, eventId);
+    this.messagesInstance.send(content, type, roomId, eventId);
   }
 
   sendReply(roomId, relatedMessage, messageText) {
-    messages.sendReply(roomId, relatedMessage, messageText);
+    this.messagesInstance.sendReply(roomId, relatedMessage, messageText);
   }
 
   getMessageById(eventId, roomId, event = null) {
-    return messages.getMessageById(eventId, roomId, event);
+    return this.messagesInstance.getMessageById(eventId, roomId, event);
   }
 
   deleteMessage(message) {
     const { event } = message.getMatrixEvent();
     const eventId = event.event_id;
     const roomId = event.room_id;
-    matrix.getClient().redactEvent(roomId, eventId);
+    this.matrixInstance.getClient().redactEvent(roomId, eventId);
     message.update();
   }
 
   editMessage(roomId, messageId, newMessageContent) {
-    messages.send(newMessageContent, 'm.edit', roomId, messageId);
+    this.messagesInstance.send(newMessageContent, 'm.edit', roomId, messageId);
   }
 
   /*************************************************
@@ -164,15 +188,15 @@ class ExternalService {
    *************************************************/
 
   getKnownUsers() {
-    return users.getKnownUsers();
+    return this.userInstance.getKnownUsers();
   }
 
   async searchUsers(searchTerm) {
-    return await users.searchUsers(searchTerm);
+    return await this.userInstance.searchUsers(searchTerm);
   }
 
   getUserById(userId) {
-    return users.getUserById(userId);
+    return this.userInstance.getUserById(userId);
   }
 
   /*************************************************
@@ -180,7 +204,7 @@ class ExternalService {
    *************************************************/
 
   getHttpUrl(mxcUrl, width = null, height = null, resizeMethod = 'scale') {
-    return matrix.getHttpUrl(mxcUrl, width, height, resizeMethod);
+    return this.matrixInstance.getHttpUrl(mxcUrl, width, height, resizeMethod);
   }
 }
 

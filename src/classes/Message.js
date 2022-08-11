@@ -20,14 +20,16 @@ export const MessageStatus = {
 };
 
 export default class Message {
-  constructor(eventId, roomId, event, pending = false) {
+  constructor(eventId, roomId, event, pending = false, matrixInstance, userInstance) {
     this.id = this.key = eventId;
     this.roomId = roomId;
+    this.matrixInstance=matrixInstance;
+    this.userInstance=userInstance;
 
     if (!pending) {
       if (!event) {
         if (roomId) {
-          const matrixRoom = matrix.getClient().getRoom(roomId);
+          const matrixRoom = this.matrixInstance.getClient().getRoom(roomId);
           const roomEvents = matrixRoom.getLiveTimeline().getEvents();
           const roomEvent = roomEvents.find((event) => event.getId() === eventId);
           if (roomEvent) {
@@ -44,7 +46,7 @@ export default class Message {
         }
       } else this._matrixEvent = event;
 
-      this.sender = users.getUserById(this._matrixEvent.getSender());
+      this.sender = this.userInstance.getUserById(this._matrixEvent.getSender());
       this.timestamp = this._matrixEvent.getTs();
       this.type$ = new BehaviorSubject(Message.getType(this._matrixEvent));
       this.status$ = new BehaviorSubject(this._matrixEvent.getAssociatedStatus());
@@ -58,7 +60,7 @@ export default class Message {
       this.pending = true;
       this._localEvent = event;
 
-      this.sender = users.getMyUser();
+      this.sender = this.userInstance.getMyUser();
       this.timestamp = event.timestamp;
       this.type$ = new BehaviorSubject(event.type);
       this.status$ = new BehaviorSubject(event.status);
@@ -80,7 +82,7 @@ export default class Message {
           key: key,
         },
       };
-      await matrix.getClient().sendEvent(this.roomId, 'm.reaction', reaction);
+      await this.matrixInstance.getClient().sendEvent(this.roomId, 'm.reaction', reaction);
       this.update();
     } catch (e) {
       console.warn('Error sending reaction: ', { message: this, key }, e);
@@ -90,8 +92,8 @@ export default class Message {
   async removeReaction(key) {
     try {
       const reactions = this.reactions$.getValue();
-      const eventId = reactions[key][matrix.getClient().getUserId()].eventId;
-      await matrix.getClient().redactEvent(this.roomId, eventId);
+      const eventId = reactions[key][this.matrixInstance.getClient().getUserId()].eventId;
+      await this.matrixInstance.getClient().redactEvent(this.roomId, eventId);
       this.update();
     } catch (e) {
       console.warn('Error removing reaction: ', { message: this, key }, e);
@@ -101,7 +103,7 @@ export default class Message {
   async toggleReaction(key) {
     try {
       const reactions = this.reactions$.getValue();
-      const reaction = reactions[key][matrix.getClient().getUserId()];
+      const reaction = reactions[key][this.matrixInstance.getClient().getUserId()];
       if (reaction) return this.removeReaction(key);
       else return this.addReaction(key);
     } catch (e) {
@@ -205,10 +207,10 @@ export default class Message {
           content.full = {
             height: content.raw.info.h,
             width: content.raw.info.w,
-            url: matrix.getImageUrl(content.raw.url),
+            url: this.matrixInstance.getImageUrl(content.raw.url),
           };
           content.thumb = {
-            url: matrix.getImageUrl(content.raw.url, THUMBNAIL_MAX_SIZE, THUMBNAIL_MAX_SIZE),
+            url: this.matrixInstance.getImageUrl(content.raw.url, THUMBNAIL_MAX_SIZE, THUMBNAIL_MAX_SIZE),
           };
         }
         // TODO: different sizes in constants or something
@@ -239,14 +241,14 @@ export default class Message {
             width: content.raw.info.w,
           };
           content.thumb = {
-            url: matrix.getHttpUrl(
+            url: this.matrixInstance.getHttpUrl(
               content.raw.info.thumbnail_url,
               THUMBNAIL_MAX_SIZE,
               THUMBNAIL_MAX_SIZE
             ),
           };
           content.type = content.raw?.info?.mimetype;
-          content.url = matrix.getHttpUrl(content.raw.url || content.url);
+          content.url = this.matrixInstance.getHttpUrl(content.raw.url || content.url);
         }
         if (content.full) {
           const { height, width } = content.full;
@@ -261,7 +263,7 @@ export default class Message {
         break;
       case 'm.file':
         content.text = `${sender} has sent a file`;
-        content.url = matrix.getHttpUrl(content.raw.url);
+        content.url = this.matrixInstance.getHttpUrl(content.raw.url);
         content.name = content.raw.body;
         break;
       case 'm.location':
@@ -349,7 +351,7 @@ export default class Message {
   }
 
   _getReactions() {
-    const matrixRoom = matrix.getClient().getRoom(this.roomId);
+    const matrixRoom = this.matrixInstance.getClient().getRoom(this.roomId);
     const eventReactions = matrixRoom
       .getUnfilteredTimelineSet()
       .getRelationsForEvent(this.id, 'm.annotation', 'm.reaction');
@@ -374,12 +376,12 @@ export default class Message {
   }
 
   _getReceipts() {
-    const matrixRoom = matrix.getClient().getRoom(this.roomId);
+    const matrixRoom = this.matrixInstance.getClient().getRoom(this.roomId);
     const receipts = matrixRoom.getReceiptsForEvent(this._matrixEvent);
     receipts.forEach((receipt) => {
-      const user = users.getUserById(receipt.userId);
+      const user = this.userInstance.getUserById(receipt.userId);
       const avatar = user.avatar$.getValue();
-      const avatarUrl = matrix.getImageUrl(avatar, 20, 20);
+      const avatarUrl = this.matrixInstance.getImageUrl(avatar, 20, 20);
       receipt.avatar = avatarUrl;
       receipt.name = user.name$.getValue();
 

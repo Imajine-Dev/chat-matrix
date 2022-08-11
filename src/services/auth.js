@@ -1,7 +1,9 @@
 import { BehaviorSubject } from 'rxjs';
 
 import i18n from '../utilities/i18n';
-import matrix from './matrix';
+//import matrix from './matrix';
+import MatrixService from './matrix';
+
 import storage from './storage';
 
 const debug = require('debug')('rnm:services:auth');
@@ -14,20 +16,21 @@ const initialAuthData = {
   crypto: false,
 };
 
-class AuthService {
+export default class AuthService {
   _data$;
   _isLoaded$;
   _isLoggedIn$;
   _isSyncing;
 
-  constructor() {
+  constructor(matrixInstance) {
+    this.matrixInstance=matrixInstance
     this._data$ = new BehaviorSubject(initialAuthData);
     this._isLoggedIn$ = new BehaviorSubject(false);
     this._isLoaded$ = new BehaviorSubject(false);
     this._isSyncing = false;
   }
 
-  async init() {
+  async init(matrixInstance) {
     this._isSyncing = true;
     const jsonData = await storage.getItem('@rnm-auth');
     const cleanData = this._sanitizeData(jsonData);
@@ -35,11 +38,12 @@ class AuthService {
     this._data$.next(cleanData);
     this._isLoaded$.next(true);
     this._isSyncing = false;
+    this.matrixInstance = matrixInstance
 
     // We can be logged out of the session because of password reset for example
-    matrix.isReady$().subscribe((isReady) => {
+    this.matrixInstance.isReady$().subscribe((isReady) => {
       if (isReady) {
-        matrix.getClient().on('Session.logged_out', (e) => {
+        this.matrixInstance.getClient().on('Session.logged_out', (e) => {
           // TODO warn the user why this happens
           debug('Logged out from the client', e);
           this.logout();
@@ -116,15 +120,15 @@ class AuthService {
       debug('hey domain ', domain);
 
       const domainToCheck = domain.slice(8);
-      const homeserverData = await matrix.getHomeserverData(domainToCheck);
+      const homeserverData = await this.matrixInstance.getHomeserverData(domainToCheck);
       debug('homeserver data ', homeserverData);
 
       debug('Logging in as %s on %s', user, homeserverData.baseUrl || domain);
-      const client = await matrix.createClient(homeserverData.baseUrl || domain);
+      const client = await this.matrixInstance.createClient(homeserverData.baseUrl || domain);
       debug('Logging in to created client...', client);
       const response = await client.loginWithPassword(user, password);
       debug('Logging in again with device ID... ', JSON.stringify(response));
-      await matrix.createClient(
+      await this.matrixInstance.createClient(
         homeserverData.baseUrl || domain,
         response.access_token,
         response.user_id,
@@ -133,7 +137,7 @@ class AuthService {
 
       this._isLoggedIn$.next(true);
 
-      matrix.start(initCrypto);
+      this.matrixInstance.start(initCrypto);
 
       const data = {
         userId: response.user_id,
@@ -184,11 +188,11 @@ class AuthService {
         };
       }
       debug('Logging in as %s on %s with deviceId %s', userId, homeserver, deviceId);
-      await matrix.createClient(homeserver, accessToken, userId, deviceId);
+      await this.matrixInstance.createClient(homeserver, accessToken, userId, deviceId);
 
       this._isLoggedIn$.next(true);
 
-      matrix.start(crypto);
+      this.matrixInstance.start(crypto);
 
       return {
         homeserver,
@@ -203,7 +207,7 @@ class AuthService {
         switch (e.errcode) {
           case 'M_UNKNOWN_TOKEN':
             login.message = i18n.t('auth:login.unknownTokenError');
-            matrix.stop();
+            this.matrixInstance.stop();
             break;
           default:
             login.message = i18n.t('auth:login.unknownError');
@@ -218,9 +222,9 @@ class AuthService {
 
   async logout() {
     try {
-      await matrix.getClient().clearStores();
+      await this.matrixInstance.getClient().clearStores();
       await this._reset();
-      await matrix.stop();
+      await this.matrixInstance.stop();
       // TODO: Maybe keep some settings
       await storage.clear();
       this._isLoggedIn$.next(false);
@@ -230,5 +234,5 @@ class AuthService {
   }
 }
 
-const authService = new AuthService();
-export default authService;
+// const authService = new AuthService();
+// export default authService;
