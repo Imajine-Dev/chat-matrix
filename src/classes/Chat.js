@@ -35,9 +35,9 @@ export const ChatDetails = {
 export default class Chat {
   constructor(roomId, matrixInstance, messagesInstance, userInstance, matrixRoom) {
     this.id = this.key = roomId;
-    this.matrixInstance=matrixInstance
-    this.messagesInstance=messagesInstance
-    this.userInstance=userInstance
+    this.matrixInstance = matrixInstance;
+    this.messagesInstance = messagesInstance;
+    this.userInstance = userInstance;
     if (!matrixRoom) {
       this._matrixRoom = this.matrixInstance.getClient().getRoom(roomId);
       if (!this._matrixRoom) throw Error(`Could not find matrix room with roomId ${roomId}`);
@@ -68,7 +68,7 @@ export default class Chat {
   }
 
   async update(changes) {
-    console.log('changeschangeschanges',changes)
+    console.log('changeschangeschanges', changes);
     return InteractionManager.runAfterInteractions(() => {
       if (changes.direct) {
         const newDirect = this._isDirect();
@@ -124,7 +124,7 @@ export default class Chat {
       }
 
       if (changes.messages) {
-        console.log('changes.messages',changes.messages)
+        console.log('changes.messages', changes.messages);
         if (changes.messages.all) this.messagesInstance.updateRoomMessages(this.id);
         else {
           for (const eventId of Object.keys(changes.messages)) {
@@ -142,7 +142,9 @@ export default class Chat {
 
     if (!avatar && this.isDirect$.getValue()) {
       const fallbackMember = this._matrixRoom.getAvatarFallbackMember();
-      avatar = fallbackMember ? this.matrixInstance.getClient().getUser(fallbackMember.userId)?.avatarUrl : null;
+      avatar = fallbackMember
+        ? this.matrixInstance.getClient().getUser(fallbackMember.userId)?.avatarUrl
+        : null;
     }
     return avatar;
   }
@@ -175,7 +177,9 @@ export default class Chat {
   _getReadState() {
     const latestMessage = this.messages$.getValue()[0];
 
-    if (!this._matrixRoom.hasUserReadEvent(this.matrixInstance.getClient().getUserId(), latestMessage)) {
+    if (
+      !this._matrixRoom.hasUserReadEvent(this.matrixInstance.getClient().getUserId(), latestMessage)
+    ) {
       return 'unread';
     }
 
@@ -207,13 +211,13 @@ export default class Chat {
         snippet.content = i18n.t('messages:content.typing', { name: user.name$.getValue() });
       }
     } else {
+      let senderName = lastMessage.sender.name$.getValue();
+      senderName = senderName.substring(0, senderName.length - 11);
       if (lastMessage) {
         if (this.isDirect$?.getValue()) {
           snippet.content = lastMessage.content$.getValue().text;
         } else {
-          snippet.content = `${lastMessage.sender.name$.getValue()}: ${
-            lastMessage.content$.getValue().text
-          }`;
+          snippet.content = `${senderName}: ${lastMessage.content$.getValue().text}`;
         }
       }
     }
@@ -250,7 +254,7 @@ export default class Chat {
   _getMembers() {
     const members = [];
     for (const member of this._matrixRoom.getJoinedMembers()) {
-      members.push(new User(member.userId,this.matrixInstance));
+      members.push(new User(member.userId, this.matrixInstance));
     }
     return members;
   }
@@ -333,7 +337,12 @@ export default class Chat {
           content: content,
         };
         const pendingMessageId = type === 'm.video' ? `~~${this.id}:video` : `~~${this.id}:image`;
-        const pendingMessage = this.messagesInstance.getMessageById(pendingMessageId, this.id, event, true);
+        const pendingMessage = this.messagesInstance.getMessageById(
+          pendingMessageId,
+          this.id,
+          event,
+          true
+        );
         // If it's already pending, we update the status, otherwise we add it
         if (this._pending.includes(pendingMessage.id)) {
           debug('Pending message already existed');
@@ -367,7 +376,12 @@ export default class Chat {
           status: MessageStatus.UPLOADING,
           content: content,
         };
-        const pendingMessage = this.messagesInstance.getMessageById(`~~${this.id}:file`, this.id, event, true);
+        const pendingMessage = this.messagesInstance.getMessageById(
+          `~~${this.id}:file`,
+          this.id,
+          event,
+          true
+        );
         // If it's already pending, we update the status, otherwise we add it
         if (this._pending.includes(pendingMessage.id)) {
           debug('Pending message already existed');

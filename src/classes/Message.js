@@ -23,8 +23,8 @@ export default class Message {
   constructor(eventId, roomId, event, pending = false, matrixInstance, userInstance) {
     this.id = this.key = eventId;
     this.roomId = roomId;
-    this.matrixInstance=matrixInstance;
-    this.userInstance=userInstance;
+    this.matrixInstance = matrixInstance;
+    this.userInstance = userInstance;
 
     if (!pending) {
       if (!event) {
@@ -176,7 +176,8 @@ export default class Message {
       content.text = i18n.t('messages:content.eventRedacted');
       return content;
     }
-    const sender = this.sender.name$.getValue();
+    let sender = this.sender.name$.getValue();
+    sender = sender.substring(0, sender.length - 11);
 
     switch (this.type$ ? this.type$.getValue() : null) {
       // TextMessage && NoticeMessage
@@ -210,7 +211,11 @@ export default class Message {
             url: this.matrixInstance.getImageUrl(content.raw.url),
           };
           content.thumb = {
-            url: this.matrixInstance.getImageUrl(content.raw.url, THUMBNAIL_MAX_SIZE, THUMBNAIL_MAX_SIZE),
+            url: this.matrixInstance.getImageUrl(
+              content.raw.url,
+              THUMBNAIL_MAX_SIZE,
+              THUMBNAIL_MAX_SIZE
+            ),
           };
         }
         // TODO: different sizes in constants or something
@@ -283,6 +288,11 @@ export default class Message {
       case 'm.room.member': {
         const prevContent = this._matrixEvent.getPrevContent();
         if (prevContent.membership !== content.raw.membership) {
+          content.raw.displayname = content.raw.displayname.substring(
+            0,
+            content.raw.displayname.length - 11
+          );
+
           switch (content.raw.membership) {
             case 'invite':
               content.text = i18n.t('messages:content.memberInvited', {
