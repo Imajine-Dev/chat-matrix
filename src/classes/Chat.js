@@ -68,7 +68,6 @@ export default class Chat {
   }
 
   async update(changes) {
-    console.log('changeschangeschanges', changes);
     return InteractionManager.runAfterInteractions(() => {
       if (changes.direct) {
         const newDirect = this._isDirect();
@@ -124,7 +123,6 @@ export default class Chat {
       }
 
       if (changes.messages) {
-        console.log('changes.messages', changes.messages);
         if (changes.messages.all) this.messagesInstance.updateRoomMessages(this.id);
         else {
           for (const eventId of Object.keys(changes.messages)) {

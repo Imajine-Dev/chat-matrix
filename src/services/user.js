@@ -12,7 +12,7 @@ export default class UserService {
     this._users = {};
     this._syncList = {};
     this.matrixInstance = matrixInstance;
-    this.matrixInstance?.isReady$().subscribe(isReady => {
+    this.matrixInstance?.isReady$().subscribe((isReady) => {
       if (isReady) this._listen();
     });
   }
@@ -23,8 +23,9 @@ export default class UserService {
   getMyUser() {
     if (!this._myUser) {
       try {
-        console.log('this.matrixInstancegetMyUser',this.matrixInstance)
-        const matrixUser = this.matrixInstance.getClient().getUser(this.matrixInstance.getClient().getUserId());
+        const matrixUser = this.matrixInstance
+          .getClient()
+          .getUser(this.matrixInstance.getClient().getUserId());
         const user = new User(matrixUser.userId, this.matrixInstance, matrixUser);
         this._users[matrixUser.userId] = user;
         this._myUser = user;
@@ -37,7 +38,6 @@ export default class UserService {
   }
 
   getUserById(userId) {
-    console.log('this.matrixInstancegetUserById',this.matrixInstance)
     if (!this._users[userId]) {
       this._users[userId] = new User(userId, this.matrixInstance);
     }
@@ -70,7 +70,7 @@ export default class UserService {
       .getClient()
       .on('RoomState.events', (event, roomState) => this._handleRoomStateEvent(event));
 
-      this.matrixInstance.getClient().on('sync', state => {
+    this.matrixInstance.getClient().on('sync', (state) => {
       if (['PREPARED', 'SYNCING'].includes(state)) {
         InteractionManager.runAfterInteractions(this._syncUsers.bind(this));
       }
@@ -118,7 +118,7 @@ export default class UserService {
         // We need to remove duplicates and our own user
         if (
           user.user_id !== this.matrixInstance.getClient().getUserId() &&
-          cleanUserList.findIndex(cleanUser => cleanUser.id === user.user_id) === -1
+          cleanUserList.findIndex((cleanUser) => cleanUser.id === user.user_id) === -1
         ) {
           cleanUserList.push({
             id: user.user_id,

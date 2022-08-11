@@ -11,15 +11,16 @@ import AuthService from './auth';
 const debug = require('debug')('rnm:services:external.js');
 
 class ExternalService {
-
-
-
   constructor(props) {
     this.matrixInstance = new MatrixService();
     this.userInstance = new UserService(this.matrixInstance);
-    this.messagesInstance= new MessagesService(this.matrixInstance,this.userInstance);
-    this.chatInstance =  new ChatService(this.matrixInstance, this.userInstance, this.messagesInstance);
-    this.authInstance =  new AuthService(this.matrixInstance);
+    this.messagesInstance = new MessagesService(this.matrixInstance, this.userInstance);
+    this.chatInstance = new ChatService(
+      this.matrixInstance,
+      this.userInstance,
+      this.messagesInstance
+    );
+    this.authInstance = new AuthService(this.matrixInstance);
   }
 
   /*************************************************
@@ -29,9 +30,13 @@ class ExternalService {
   async initMatrixInstance() {
     this.matrixInstance = new MatrixService();
     this.userInstance = new UserService(this.matrixInstance);
-    this.messagesInstance= new MessagesService(this.matrixInstance,this.userInstance);
-    this.chatInstance =  new ChatService(this.matrixInstance, this.userInstance, this.messagesInstance);
-    this.authInstance =  new AuthService(this.matrixInstance);
+    this.messagesInstance = new MessagesService(this.matrixInstance, this.userInstance);
+    this.chatInstance = new ChatService(
+      this.matrixInstance,
+      this.userInstance,
+      this.messagesInstance
+    );
+    this.authInstance = new AuthService(this.matrixInstance);
   }
 
   async createClient(baseUrl, accessToken, userId, deviceId) {
@@ -71,7 +76,6 @@ class ExternalService {
    *************************************************/
 
   isReady$() {
-    console.log('this.matrixInstance',this.matrixInstance)
     return this.matrixInstance.isReady$();
   }
 
