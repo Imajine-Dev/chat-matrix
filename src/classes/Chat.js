@@ -209,9 +209,9 @@ export default class Chat {
         snippet.content = i18n.t('messages:content.typing', { name: user.name$.getValue() });
       }
     } else {
-      let senderName = lastMessage.sender.name$.getValue();
-      senderName = senderName.substring(0, senderName.length - 11);
       if (lastMessage) {
+        let senderName = lastMessage.sender.name$.getValue();
+        senderName = senderName.substring(0, senderName.length - 11);
         if (this.isDirect$?.getValue()) {
           snippet.content = lastMessage.content$.getValue().text;
         } else {
