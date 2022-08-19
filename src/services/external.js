@@ -156,7 +156,7 @@ class ExternalService {
 
   setRoomName(roomId, name) {
     const chat = this.chatInstance.getChatById(roomId);
-    this.chatInstance.setName(name);
+    chat.setName(name);
   }
 
   /*************************************************
