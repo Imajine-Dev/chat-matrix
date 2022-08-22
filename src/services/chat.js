@@ -15,7 +15,7 @@ import Message from '../classes/Message';
 const debug = require('debug')('rnm:scenes:chat:chatService');
 
 export default class ChatService {
-  constructor(matrixInstance,userInstance,messagesInstance) {
+  constructor(matrixInstance, userInstance, messagesInstance) {
     this._chats = {
       all: {},
       all$: new BehaviorSubject([]),
@@ -26,9 +26,9 @@ export default class ChatService {
     };
     this._syncList = {};
     this._opened = null;
-    this.matrixInstance=matrixInstance
-    this.userInstance=userInstance
-    this.messagesInstance=messagesInstance
+    this.matrixInstance = matrixInstance;
+    this.userInstance = userInstance;
+    this.messagesInstance = messagesInstance;
 
     this.matrixInstance.isReady$().subscribe((isReady) => {
       if (isReady) {
@@ -67,7 +67,13 @@ export default class ChatService {
   getChatById(roomId) {
     if (!this._chats.all[roomId]) {
       const matrixRoom = this.matrixInstance.getClient().getRoom(roomId);
-      this._chats.all[roomId] = new Chat(roomId,this.matrixInstance, this.messagesInstance, this.userInstance, matrixRoom);
+      this._chats.all[roomId] = new Chat(
+        roomId,
+        this.matrixInstance,
+        this.messagesInstance,
+        this.userInstance,
+        matrixRoom
+      );
     }
     return this._chats.all[roomId];
   }
@@ -104,7 +110,13 @@ export default class ChatService {
       for (const matrixRoom of matrixRooms) {
         let chat = this._chats.all[matrixRoom.roomId];
         if (!chat) {
-          chat = new Chat(matrixRoom.roomId,this.matrixInstance, this.messagesInstance, this.userInstance, matrixRoom);
+          chat = new Chat(
+            matrixRoom.roomId,
+            this.matrixInstance,
+            this.messagesInstance,
+            this.userInstance,
+            matrixRoom
+          );
           this._chats.all[matrixRoom.roomId] = chat;
         } else if (updateChats) {
           chat.update(ChatDetails.SUMMARY);
@@ -246,7 +258,10 @@ export default class ChatService {
       if (Message.isMessageUpdate(relatedEvent)) {
         // We need to look for the eventIds in memory because the associated id
         // has been redacted too
-        const mainMessage = this.messagesInstance.getMessageByRelationId(relatedEvent.getId(), roomId);
+        const mainMessage = this.messagesInstance.getMessageByRelationId(
+          relatedEvent.getId(),
+          roomId
+        );
         if (!mainMessage) return;
         mainEventId = mainMessage.id;
       }
@@ -273,7 +288,11 @@ export default class ChatService {
 
   _handleEventDecryptedEvent(event, error) {
     if (!error) {
-      const decryptedMessage = this.messagesInstance.getMessageById(event.getId(), event.getRoomId(), event);
+      const decryptedMessage = this.messagesInstance.getMessageById(
+        event.getId(),
+        event.getRoomId(),
+        event
+      );
       if (decryptedMessage) {
         decryptedMessage.setMatrixEvent(event);
         decryptedMessage.update();
@@ -289,21 +308,31 @@ export default class ChatService {
   }
 
   _listen() {
-    this.matrixInstance.getClient().on('accountData', (event) => this._handleAccountDataEvent(event));
-    this.matrixInstance.getClient().on('deleteRoom', (roomId) => this._handleDeleteRoomEvent(roomId));
-    this.matrixInstance.getClient()
+    this.matrixInstance
+      .getClient()
+      .on('accountData', (event) => this._handleAccountDataEvent(event));
+    this.matrixInstance
+      .getClient()
+      .on('deleteRoom', (roomId) => this._handleDeleteRoomEvent(roomId));
+    this.matrixInstance
+      .getClient()
       .on('Room.localEchoUpdated', (event, room, oldEventId, oldStatus) =>
         this._handleRoomLocalEchoUpdatedEvent(event, room, oldEventId)
       );
-    this.matrixInstance.getClient()
+    this.matrixInstance
+      .getClient()
       .on('Room.receipt', (event, room) => this._handleRoomReceiptEvent(event, room));
-    this.matrixInstance.getClient()
+    this.matrixInstance
+      .getClient()
       .on('Room.timeline', (event, room) => this._handleRoomTimelineEvent(event, room));
-    this.matrixInstance.getClient()
+    this.matrixInstance
+      .getClient()
       .on('RoomMember.typing', (event, member) => this._handleRoomMemberTypingEvent(event, member));
-    this.matrixInstance.getClient()
+    this.matrixInstance
+      .getClient()
       .on('RoomState.events', (event, roomState) => this._handleRoomStateEvent(event, roomState));
-    this.matrixInstance.getClient()
+    this.matrixInstance
+      .getClient()
       .on('Event.decrypted', (event, error) => this._handleEventDecryptedEvent(event, error));
 
     this.matrixInstance.getClient().on('sync', (state) => {
@@ -331,7 +360,12 @@ export default class ChatService {
   async _syncChats() {
     for (const [roomId, changes] of Object.entries(this._syncList)) {
       if (!this._chats.all[roomId]) {
-        this._chats.all[roomId] = new Chat(roomId, this.matrixInstance, this.messagesInstance, this.userInstance);
+        this._chats.all[roomId] = new Chat(
+          roomId,
+          this.matrixInstance,
+          this.messagesInstance,
+          this.userInstance
+        );
       } else if (this._chats.all[roomId]) {
         this._chats.all[roomId].update(changes);
       }
@@ -391,7 +425,7 @@ export default class ChatService {
   //     const latestA = messages.getMessageById(chatA.messages$.getValue()[0], chatA.id)?.timestamp;
   //     const latestB = messages.getMessageById(chatB.messages$.getValue()[0], chatB.id)?.timestamp;
   //     return latestA && latestB && latestA > latestB ? -1 : latestA < latestB ? 1 : 0;
-    
+
   // }
 
   isEqualById(a, b) {

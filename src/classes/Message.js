@@ -335,9 +335,10 @@ export default class Message {
         content.text = i18n.t('messages:content.chatCreated', { sender: sender });
         break;
       case 'm.room.name':
+        const nameToDisplay = content.raw.name.substring(0, content.raw.name.length - 11);
         content.text = i18n.t('messages:content.chatNameChanged', {
           sender: sender,
-          name: content.raw.name,
+          name: nameToDisplay,
         });
         break;
       case 'm.room.avatar':
