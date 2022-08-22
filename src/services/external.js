@@ -11,17 +11,17 @@ import AuthService from './auth';
 const debug = require('debug')('rnm:services:external.js');
 
 class ExternalService {
-  constructor(props) {
-    this.matrixInstance = new MatrixService();
-    this.userInstance = new UserService(this.matrixInstance);
-    this.messagesInstance = new MessagesService(this.matrixInstance, this.userInstance);
-    this.chatInstance = new ChatService(
-      this.matrixInstance,
-      this.userInstance,
-      this.messagesInstance
-    );
-    this.authInstance = new AuthService(this.matrixInstance);
-  }
+  // constructor(props) {
+  //   this.matrixInstance = new MatrixService();
+  //   this.userInstance = new UserService(this.matrixInstance);
+  //   this.messagesInstance = new MessagesService(this.matrixInstance, this.userInstance);
+  //   this.chatInstance = new ChatService(
+  //     this.matrixInstance,
+  //     this.userInstance,
+  //     this.messagesInstance
+  //   );
+  //   this.authInstance = new AuthService(this.matrixInstance);
+  // }
 
   /*************************************************
    * CLIENT METHODS
