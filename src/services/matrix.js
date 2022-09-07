@@ -32,7 +32,7 @@ const MATRIX_CLIENT_START_OPTIONS = {
   }, // js-sdk complains if this isn't supplied but it's only used for remembering a local trusted backup key
 };
 
-class MatrixService {
+export default class MatrixService {
   _client;
   _started;
 
@@ -258,5 +258,5 @@ class MatrixService {
   }
 }
 
-const matrix = new MatrixService();
-export default matrix;
+// const matrix = new MatrixService();
+// export default matrix;

@@ -33,11 +33,13 @@ export const ChatDetails = {
 };
 
 export default class Chat {
-  constructor(roomId, matrixRoom) {
+  constructor(roomId, matrixInstance, messagesInstance, userInstance, matrixRoom) {
     this.id = this.key = roomId;
-
+    this.matrixInstance = matrixInstance;
+    this.messagesInstance = messagesInstance;
+    this.userInstance = userInstance;
     if (!matrixRoom) {
-      this._matrixRoom = matrix.getClient().getRoom(roomId);
+      this._matrixRoom = this.matrixInstance.getClient().getRoom(roomId);
       if (!this._matrixRoom) throw Error(`Could not find matrix room with roomId ${roomId}`);
     } else this._matrixRoom = matrixRoom;
 
@@ -84,7 +86,7 @@ export default class Chat {
         const newMessages = this._getMessages();
         if (!isEqual(this.messages$.getValue(), newMessages)) {
           this.messages$.next(newMessages);
-          messages.cleanupRoomMessages(this.id, newMessages);
+          this.messagesInstance.cleanupRoomMessages(this.id, newMessages);
         }
 
         const newAtStart = this._isAtStart();
@@ -93,7 +95,7 @@ export default class Chat {
 
       if (changes.typing) {
         let changed = false;
-        const myUserId = matrix.getClient().getUserId();
+        const myUserId = this.matrixInstance.getClient().getUserId();
         const oldTyping = this.typing$.getValue();
         const newTyping = [];
 
@@ -121,10 +123,10 @@ export default class Chat {
       }
 
       if (changes.messages) {
-        if (changes.messages.all) messages.updateRoomMessages(this.id);
+        if (changes.messages.all) this.messagesInstance.updateRoomMessages(this.id);
         else {
           for (const eventId of Object.keys(changes.messages)) {
-            messages.updateMessage(eventId, this.id);
+            this.messagesInstance.updateMessage(eventId, this.id);
           }
         }
       }
@@ -138,7 +140,9 @@ export default class Chat {
 
     if (!avatar && this.isDirect$.getValue()) {
       const fallbackMember = this._matrixRoom.getAvatarFallbackMember();
-      avatar = fallbackMember ? matrix.getClient().getUser(fallbackMember.userId)?.avatarUrl : null;
+      avatar = fallbackMember
+        ? this.matrixInstance.getClient().getUser(fallbackMember.userId)?.avatarUrl
+        : null;
     }
     return avatar;
   }
@@ -171,7 +175,9 @@ export default class Chat {
   _getReadState() {
     const latestMessage = this.messages$.getValue()[0];
 
-    if (!this._matrixRoom.hasUserReadEvent(matrix.getClient().getUserId(), latestMessage)) {
+    if (
+      !this._matrixRoom.hasUserReadEvent(this.matrixInstance.getClient().getUserId(), latestMessage)
+    ) {
       return 'unread';
     }
 
@@ -187,13 +193,13 @@ export default class Chat {
   _getSnippet() {
     const snippet = {};
     const chatMessages = this.messages$.getValue();
-    const lastMessage = messages.getMessageById(chatMessages[0], this.id);
+    const lastMessage = this.messagesInstance.getMessageById(chatMessages[0], this.id);
 
     snippet.timestamp = lastMessage?.timestamp;
 
     const typing = this.typing$.getValue();
     if (typing.length > 0) {
-      const user = users.getUserById(typing[0]);
+      const user = this.userInstance.getUserById(typing[0]);
       if (typing.length > 1) {
         snippet.content = i18n.t('messages:content.groupTyping', {
           user1: user.name$.getValue(),
@@ -204,12 +210,12 @@ export default class Chat {
       }
     } else {
       if (lastMessage) {
+        let senderName = lastMessage.sender.name$.getValue();
+        senderName = senderName.substring(0, senderName.length - 11);
         if (this.isDirect$?.getValue()) {
           snippet.content = lastMessage.content$.getValue().text;
         } else {
-          snippet.content = `${lastMessage.sender.name$.getValue()}: ${
-            lastMessage.content$.getValue().text
-          }`;
+          snippet.content = `${senderName}: ${lastMessage.content$.getValue().text}`;
         }
       }
     }
@@ -225,7 +231,7 @@ export default class Chat {
 
   _isDirect() {
     try {
-      const directEvent = matrix.getClient().getAccountData('m.direct');
+      const directEvent = this.matrixInstance.getClient().getAccountData('m.direct');
       const aDirectRooms = directEvent ? Object.values(directEvent.getContent()) : [];
       let directRooms = [];
       for (const array of aDirectRooms) {
@@ -246,13 +252,13 @@ export default class Chat {
   _getMembers() {
     const members = [];
     for (const member of this._matrixRoom.getJoinedMembers()) {
-      members.push(new User(member.userId));
+      members.push(new User(member.userId, this.matrixInstance));
     }
     return members;
   }
 
   isEncrypted() {
-    return matrix.getClient().isRoomEncrypted(this.id);
+    return this.matrixInstance.getClient().isRoomEncrypted(this.id);
   }
 
   getSlim() {
@@ -268,19 +274,19 @@ export default class Chat {
   //* *******************************************************************************
   async leave() {
     try {
-      await matrix.getClient().leave(this.id);
+      await this.matrixInstance.getClient().leave(this.id);
     } catch (e) {
       debug('Error leaving room %s:', this.id, e);
     }
 
     // provide support for "archiving", so people can go view historical rooms, and THEN delete
-    await matrix.getClient().forget(this.id);
+    await this.matrixInstance.getClient().forget(this.id);
   }
 
   async fetchPreviousMessages() {
     try {
       // TODO: Improve this and gaps detection
-      await matrix
+      await this.matrixInstance
         .getClient()
         .paginateEventTimeline(this._matrixRoom.getLiveTimeline(), { backwards: true });
 
@@ -292,7 +298,7 @@ export default class Chat {
 
   async kick(userId, reason = '') {
     try {
-      await matrix.getClient().kick(this.id, userId, reason);
+      await this.matrixInstance.getClient().kick(this.id, userId, reason);
     } catch (e) {
       debug('Error kicking user %s:', this.id, e);
       return e;
@@ -301,7 +307,7 @@ export default class Chat {
 
   async ban(userId, reason = '') {
     try {
-      await matrix.getClient().ban(this.id, userId, reason);
+      await this.matrixInstance.getClient().ban(this.id, userId, reason);
     } catch (e) {
       debug('Error banning user %s:', this.id, e);
       return e;
@@ -310,7 +316,7 @@ export default class Chat {
 
   async unban(userId, reason = '') {
     try {
-      await matrix.getClient().ban(this.id, userId, reason);
+      await this.matrixInstance.getClient().ban(this.id, userId, reason);
     } catch (e) {
       debug('Error unbanning user %s:', this.id, e);
       return e;
@@ -329,7 +335,12 @@ export default class Chat {
           content: content,
         };
         const pendingMessageId = type === 'm.video' ? `~~${this.id}:video` : `~~${this.id}:image`;
-        const pendingMessage = messages.getMessageById(pendingMessageId, this.id, event, true);
+        const pendingMessage = this.messagesInstance.getMessageById(
+          pendingMessageId,
+          this.id,
+          event,
+          true
+        );
         // If it's already pending, we update the status, otherwise we add it
         if (this._pending.includes(pendingMessage.id)) {
           debug('Pending message already existed');
@@ -341,7 +352,7 @@ export default class Chat {
         }
 
         // Upload image
-        const response = await matrix.uploadContent(content);
+        const response = await this.matrixInstance.uploadContent(content);
         debug('uploadImage response', response);
 
         if (!response) {
@@ -363,7 +374,12 @@ export default class Chat {
           status: MessageStatus.UPLOADING,
           content: content,
         };
-        const pendingMessage = messages.getMessageById(`~~${this.id}:file`, this.id, event, true);
+        const pendingMessage = this.messagesInstance.getMessageById(
+          `~~${this.id}:file`,
+          this.id,
+          event,
+          true
+        );
         // If it's already pending, we update the status, otherwise we add it
         if (this._pending.includes(pendingMessage.id)) {
           debug('Pending message already existed');
@@ -375,7 +391,7 @@ export default class Chat {
         }
 
         // Upload image
-        const mxcUrl = await matrix.uploadContent(content);
+        const mxcUrl = await this.matrixInstance.uploadContent(content);
 
         if (!mxcUrl) {
           // TODO: handle upload error
@@ -390,23 +406,23 @@ export default class Chat {
       }
       default:
     }
-    return messages.send(content, type, this.id);
+    return this.messagesInstance.send(content, type, this.id);
   }
 
   sendReply(relatedMessage, message) {
-    return messages.sendReply(this.id, relatedMessage, message);
+    return this.messagesInstance.sendReply(this.id, relatedMessage, message);
   }
 
   async sendPendingEvents() {
     const matrixPendingEvents = this._matrixRoom.getPendingEvents();
     for (const pendingEvent of matrixPendingEvents) {
       if (pendingEvent.getAssociatedStatus() === MessageStatus.NOT_SENT) {
-        await matrix.getClient().resendEvent(pendingEvent, this._matrixRoom);
+        await this.matrixInstance.getClient().resendEvent(pendingEvent, this._matrixRoom);
       }
     }
 
     for (const pendingMessageId of this._pending) {
-      const pendingMessage = messages.getMessageById(pendingMessageId, this.id);
+      const pendingMessage = this.messagesInstance.getMessageById(pendingMessageId, this.id);
       if (pendingMessage.status$.getValue() === MessageStatus.NOT_UPLOADED) {
         await this.sendMessage(
           pendingMessage.content$.getValue().raw,
@@ -421,7 +437,7 @@ export default class Chat {
     const readState = this._getReadState();
     if (readState === 'unread') {
       const matrixEvent = this._matrixRoom.findEventById(latestMessage);
-      await matrix.getClient().sendReadReceipt(matrixEvent);
+      await this.matrixInstance.getClient().sendReadReceipt(matrixEvent);
     }
   }
 
@@ -434,7 +450,7 @@ export default class Chat {
         state.active = false;
       }, TYPING_TIMEOUT);
       state.active = true;
-      matrix.getClient().sendTyping(this.id, true, TYPING_TIMEOUT + 5000);
+      this.matrixInstance.getClient().sendTyping(this.id, true, TYPING_TIMEOUT + 5000);
     } else if (!typing && state.active) {
       // We were typing
       if (state.timer) {
@@ -442,19 +458,19 @@ export default class Chat {
         state.timer = null;
       }
       state.active = false;
-      matrix.getClient().sendTyping(this.id, false);
+      this.matrixInstance.getClient().sendTyping(this.id, false);
     }
   }
 
   setName(newName) {
     this.name$.next(newName);
-    matrix.getClient().setRoomName(this.id, newName);
+    this.matrixInstance.getClient().setRoomName(this.id, newName);
   }
 
   async setAvatar(image) {
-    const url = await matrix.uploadImage(image);
+    const url = await this.matrixInstance.uploadImage(image);
     this.avatar$.next(url);
-    return matrix.getClient().sendEvent(this.id, 'm.room.avatar', url);
+    return this.matrixInstance.getClient().sendEvent(this.id, 'm.room.avatar', url);
   }
 
   //* *******************************************************************************
@@ -463,7 +479,7 @@ export default class Chat {
   getAvatarUrl(size) {
     if (this.avatar$.getValue() == null) return null;
     try {
-      return matrix.getImageUrl(this.avatar$.getValue(), size, size, 'crop');
+      return this.matrixInstance.getImageUrl(this.avatar$.getValue(), size, size, 'crop');
     } catch (e) {
       debug('Error in getAvatarUrl', e);
       return null;

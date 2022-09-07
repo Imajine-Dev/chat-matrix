@@ -5,11 +5,11 @@ import matrix from '../services/matrix';
 // const debug = require('debug')('rnm:scenes:user:User')
 
 export default class User {
-  constructor(userId, matrixUser) {
+  constructor(userId, matrixInstance, matrixUser) {
     this.id = this.key = userId;
-
+    this.matrixInstance = matrixInstance
     if (!matrixUser) {
-      this._matrixUser = matrix.getClient().getUser(userId);
+      this._matrixUser = matrixInstance.getClient().getUser(userId);
     } else this._matrixUser = matrixUser;
 
     if (this._matrixUser) {
@@ -36,12 +36,12 @@ export default class User {
   // Actions
   //* *******************************************************************************
   async setAvatar(image) {
-    const url = await matrix.uploadImage(image);
-    return matrix.getClient().setAvatarUrl(url);
+    const url = await this.matrixInstance.uploadImage(image);
+    return this.matrixInstance.getClient().setAvatarUrl(url);
   }
 
   async setName(name) {
-    return matrix.getClient().setDisplayName(name);
+    return this.matrixInstance.getClient().setDisplayName(name);
   }
 
   //* *******************************************************************************

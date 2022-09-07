@@ -1,13 +1,16 @@
 import showdown from 'showdown';
 
-import matrix from './matrix';
+//import matrix from './matrix';
 import Message from '../classes/Message';
 
 const debug = require('debug')('rnm:scenes:chat:message:messageService');
 const mdConverter = new showdown.Converter({ simplifiedAutoLink: true });
 
-class MessageService {
-  constructor() {
+export default class MessageService {
+  constructor(matrixInstance,userInstance) {
+    this.matrixInstance = matrixInstance
+    this.userInstance = userInstance
+
     this._messages = {};
     this._userReceiptMap = {};
   }
@@ -27,7 +30,7 @@ class MessageService {
     if (!this._messages[roomId]) this._messages[roomId] = {};
     if (!this._messages[roomId][eventId]) {
       if (eventId) {
-        this._messages[roomId][eventId] = new Message(eventId, roomId, event, pending);
+        this._messages[roomId][eventId] = new Message(eventId, roomId, event, pending,this.matrixInstance, this.userInstance);
       }
     }
     return this._messages[roomId][eventId];
@@ -85,13 +88,13 @@ class MessageService {
           const html = mdConverter.makeHtml(content);
           // If the message doesn't have markdown, don't send the html
           if (html !== '<p>' + content + '</p>') {
-            return matrix.getClient().sendHtmlMessage(roomId, content, html);
+            return this.matrixInstance.getClient().sendHtmlMessage(roomId, content, html);
           } else {
-            return matrix.getClient().sendTextMessage(roomId, content);
+            return this.matrixInstance.getClient().sendTextMessage(roomId, content);
           }
         }
         case 'm.image': {
-          return matrix.getClient().sendImageMessage(
+          return this.matrixInstance.getClient().sendImageMessage(
             roomId,
             content.url,
             {
@@ -104,7 +107,7 @@ class MessageService {
           );
         }
         case 'm.video': {
-          return matrix.getClient().sendMessage(roomId, {
+          return this.matrixInstance.getClient().sendMessage(roomId, {
             msgtype: 'm.video',
             body: content.fileName,
             info: {},
@@ -112,7 +115,7 @@ class MessageService {
           });
         }
         case 'm.file': {
-          return matrix.getClient().sendMessage(roomId, {
+          return this.matrixInstance.getClient().sendMessage(roomId, {
             msgtype: 'm.file',
             body: content.name,
             info: {
@@ -124,7 +127,7 @@ class MessageService {
           });
         }
         case 'm.edit': {
-          return matrix.getClient().sendEvent(roomId, 'm.room.message', {
+          return this.matrixInstance.getClient().sendEvent(roomId, 'm.room.message', {
             'm.new_content': { msgtype: 'm.text', body: content },
             'm.relates_to': {
               rel_type: 'm.replace',
@@ -140,7 +143,7 @@ class MessageService {
           if (indexOf >= 0) {
             htmlWithoutPreviousReply = htmlWithoutPreviousReply.slice(indexOf + 11);
           }
-          return matrix.getClient().sendEvent(roomId, 'm.room.message', {
+          return this.matrixInstance.getClient().sendEvent(roomId, 'm.room.message', {
             'm.relates_to': {
               'm.in_reply_to': {
                 event_id: eventId,
@@ -178,5 +181,5 @@ class MessageService {
   }
 }
 
-const messageService = new MessageService();
-export default messageService;
+// const messageService = new MessageService();
+// export default messageService;
