@@ -235,7 +235,6 @@ export default class Chat {
     } else {
       if (lastMessage) {
         let senderName = lastMessage.sender.name$.getValue();
-        senderName = senderName.substring(0, senderName.length - 11);
         if (this.isDirect$?.getValue()) {
           snippet.content = lastMessage.content$.getValue().text;
         } else {
